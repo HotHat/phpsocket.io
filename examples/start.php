@@ -86,7 +86,8 @@ $req1 = new \PHPSocketIO\Engine\Protocols\Http\Request($connection, $next);
 $engine->onHttpRequest($connection, $req1);
 
 
-// $engine->onWebSocketConnect($req1, new \PHPSocketIO\Engine\Protocols\Http\Response($connection));
+$engine->onWebSocketConnect($req1, new \PHPSocketIO\Engine\Protocols\Http\Response($connection));
+$engine->onWebsocketMessage($sid, '42["message", "hello, world"]');
 
 /*
 $eio = <<<EOF

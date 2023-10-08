@@ -17,7 +17,7 @@ class WebSocket extends Transport
     public function __construct($connection)
     {
         $this->socket = $connection;
-        $this->socket->onMessage = [$this, 'onData2'];
+        $this->socket->onMessage = [$this, 'onMessage'];
         $this->socket->onClose = [$this, 'onClose'];
         $this->socket->onError = [$this, 'onError2'];
         Debug::debug('WebSocket __construct');
@@ -28,7 +28,7 @@ class WebSocket extends Transport
         Debug::debug('WebSocket __destruct');
     }
 
-    public function onData2($connection, $data)
+    public function onMessage($connection, $data)
     {
         $this->onData($data);
         // call_user_func([$this, 'parent::onData'], $data);

@@ -11,6 +11,7 @@ class Polling extends Transport
     public $chunks = '';
     public $shouldClose = null;
     public $writable = false;
+    public $supportsBinary = false;
 
     public function onRequest($req, $res)
     {

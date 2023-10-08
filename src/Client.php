@@ -174,7 +174,7 @@ class Client
     public function ondata($data)
     {
         try {
-            // todo chek '2["chat message","2"]' . "\0" . ''
+            // TODO: check '2["chat message","2"]' . "\0" . ''
             $this->decoder->add(trim($data));
         } catch (Exception $e) {
             $this->onerror($e);

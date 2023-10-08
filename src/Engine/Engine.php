@@ -5,6 +5,8 @@ namespace PHPSocketIO\Engine;
 use Exception;
 use PHPSocketIO\Engine\Protocols\Http\Request;
 use PHPSocketIO\Engine\Protocols\Http\Response;
+use PHPSocketIO\Engine\Transports\PollingJsonp;
+use PHPSocketIO\Engine\Transports\PollingXHR;
 use PHPSocketIO\Engine\Transports\WebSocket;
 use PHPSocketIO\Event\Emitter;
 use PHPSocketIO\Debug;
@@ -42,7 +44,7 @@ class Engine extends Emitter
 
     public function __construct($opts = [])
     {
-        $ops_map = [
+        $opsMap = [
             'pingTimeout',
             'pingInterval',
             'upgradeTimeout',
@@ -50,7 +52,7 @@ class Engine extends Emitter
             'allowUpgrades',
             'allowRequest'
         ];
-        foreach ($ops_map as $key) {
+        foreach ($opsMap as $key) {
             if (isset($opts[$key])) {
                 $this->$key = $opts[$key];
             }
@@ -157,16 +159,17 @@ class Engine extends Emitter
             $parts = parse_url($origin);
             $defaultPort = 'https:' === $parts['scheme'] ? 443 : 80;
             $parts['port'] = $parts['port'] ?? $defaultPort;
-            $allowed_origins = explode(' ', $this->origins);
-            foreach ($allowed_origins as $allow_origin) {
+            $allowedOrigins = explode(' ', $this->origins);
+            foreach ($allowedOrigins as $allowOrigin) {
                 $ok =
-                    $allow_origin === $parts['scheme'] . '://' . $parts['host'] . ':' . $parts['port'] ||
-                    $allow_origin === $parts['scheme'] . '://' . $parts['host'] ||
-                    $allow_origin === $parts['scheme'] . '://' . $parts['host'] . ':*' ||
-                    $allow_origin === '*:' . $parts['port'];
+                    $allowOrigin === $parts['scheme'] . '://' . $parts['host'] . ':' . $parts['port'] ||
+                    $allowOrigin === $parts['scheme'] . '://' . $parts['host'] ||
+                    $allowOrigin === $parts['scheme'] . '://' . $parts['host'] . ':*' ||
+                    $allowOrigin === '*:' . $parts['port'];
                 if ($ok) {
                     // 只需要有一个白名单通过，则都通过
-                    return call_user_func($fn, null, true, $req, $res);
+                    return $fn($req, $res);
+                    // return call_user_func($fn, null, true, $req, $res);
                 }
             }
         }
@@ -176,36 +179,29 @@ class Engine extends Emitter
         // call_user_func($fn, null, false, $req, $res);
     }
 
-    protected function prepare($req)
-    {
-        if (! isset($req->_query)) {
-            $info = parse_url($req->url);
-            if (isset($info['query'])) {
-                parse_str($info['query'], $req->_query);
-            }
-        }
-    }
-
     /**
      * @throws Exception
      */
-    public function handshake($transport, $req, $res)
+    public function handshake($trans, $req, $res)
     {
-        $id = bin2hex(
+        $sid = bin2hex(
             pack('d', microtime(true)) .
             pack('N', function_exists('random_int') ?
                 random_int(1, 100000000) : rand(1, 100000000))
         );
 
-        if ($transport == 'websocket') {
-            $transport = '\\PHPSocketIO\\Engine\\Transports\\WebSocket';
+        if ($trans == 'websocket') {
+            $transport = new WebSocket($req->connection);
+            // $transport = '\\PHPSocketIO\\Engine\\Transports\\WebSocket';
         } elseif (isset($req->_query['j'])) {
-            $transport = '\\PHPSocketIO\\Engine\\Transports\\PollingJsonp';
+            $transport = new PollingJsonp($req);
+            // $transport = '\\PHPSocketIO\\Engine\\Transports\\PollingJsonp';
         } else {
-            $transport = '\\PHPSocketIO\\Engine\\Transports\\PollingXHR';
+            $transport = new PollingXHR();
+            // $transport = '\\PHPSocketIO\\Engine\\Transports\\PollingXHR';
         }
 
-        $transport = new $transport($req, $res);
+        // $transport = new $transport($req, $res);
 
         $transport->supportsBinary = ! isset($req->_query['b64']);
         $transport->writable = true;
@@ -213,10 +209,10 @@ class Engine extends Emitter
 
         $transport->onRequest($req, $res);
 
-        $socket = new Socket($id, $this, $transport, $req);
+        $socket = new Socket($sid, $this, $transport, $req);
 
 
-        $this->clients[$id] = $socket;
+        $this->clients[$sid] = $socket;
         $socket->once('close', [$this, 'onSocketClose']);
         $this->emit('connection', $socket);
     }
@@ -242,6 +238,16 @@ class Engine extends Emitter
     public function onHttpRequest($connection, $request) {
         $res = new Response($connection);
         $this->handleRequest($request, $res);
+    }
+
+    public function onWebsocketMessage($sid, $message) {
+        if (! isset($this->clients[$req->_query['sid']])) {
+            // self::sendErrorMessage($this->req, $this->res, 'upgrade attempt for closed client');
+            echo 'not found sid';
+            return;
+        }
+
+        $this->clients[$sid]->transport->onMessage(null, $message);
     }
 
     public function onConnect($connection)
