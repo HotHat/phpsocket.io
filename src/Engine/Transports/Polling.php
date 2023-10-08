@@ -76,20 +76,21 @@ class Polling extends Transport
             return;
         }
 
-        $this->dataReq = $req;
-        $this->dataRes = $res;
-        $req->onClose = [$this, 'dataRequestOnClose'];
-        $req->onData = [$this, 'dataRequestOnData'];
-        $req->onEnd = [$this, 'dataRequestOnEnd'];
-
+        $this->req = $req;
+        $this->res = $res;
+        $this->dataRequestCleanup();
+        // $req->onClose = [$this, 'dataRequestOnClose'];
+        // $req->onData = [$this, 'dataRequestOnData'];
+        $this->dataRequestOnEnd();
+        // $req->onEnd = [$this, 'dataRequestOnEnd'];
     }
 
     public function dataRequestCleanup()
     {
         $this->chunks = '';
-        $this->dataReq->res = null;
-        $this->dataReq->onClose = $this->dataReq->onData = $this->dataReq->onEnd = null;
-        $this->dataReq = $this->dataRes = null;
+        // $this->dataReq->res = null;
+        // $this->dataReq->onClose = $this->dataReq->onData = $this->dataReq->onEnd = null;
+        // $this->dataReq = $this->dataRes = null;
     }
 
     public function dataRequestOnClose()
@@ -105,7 +106,7 @@ class Polling extends Transport
 
     public function dataRequestOnEnd()
     {
-        $this->onData($this->chunks);
+        $this->onData($this->req->rawBody());
 
         $headers = [
             'Content-Type' => 'text/html',
@@ -113,8 +114,8 @@ class Polling extends Transport
             'X-XSS-Protection' => '0',
         ];
 
-        $this->dataRes->writeHead(200, '', $this->headers($this->dataReq, $headers));
-        $this->dataRes->end('ok');
+        $this->res->writeHead(200, '', $this->headers($this->req, $headers));
+        $this->res->end('ok');
         $this->dataRequestCleanup();
     }
 
