@@ -16,16 +16,16 @@ class PollingXHR extends Polling
         Debug::debug('PollingXHR __destruct');
     }
 
-    public function onRequest($req)
+    public function onRequest($req, $res)
     {
         if ('OPTIONS' === $req->method) {
-            $res = $req->res;
             $headers = $this->headers($req);
             $headers['Access-Control-Allow-Headers'] = 'Content-Type';
             $res->writeHead(200, '', $headers);
             $res->end();
-        } else {
-            parent::onRequest($req);
+        }
+        else {
+            parent::onRequest($req, $res);
         }
     }
 

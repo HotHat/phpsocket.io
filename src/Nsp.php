@@ -59,7 +59,7 @@ class Nsp extends Emitter
     {
         $socket_name = $this->server->socket();
         $socket = new $socket_name($this, $client);
-        if ('open' === $client->conn->readyState) {
+        if ('open' === $client->engineSocket->readyState) {
             $this->sockets[$socket->id] = $socket;
             $socket->onconnect();
             if (! empty($fn)) {

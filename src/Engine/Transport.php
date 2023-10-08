@@ -26,9 +26,10 @@ class Transport extends Emitter
     {
     }
 
-    public function onRequest($req)
+    public function onRequest($req, $res)
     {
         $this->req = $req;
+        $this->res = $res;
     }
 
     public function close($fn = null)

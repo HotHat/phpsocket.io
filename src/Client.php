@@ -10,7 +10,7 @@ use PHPSocketIO\Parser\Parser;
 class Client
 {
     public $server = null;
-    public $conn = null;
+    public $engineSocket = null;
     public $encoder = null;
     public $decoder = null;
     public $id = null;
@@ -22,14 +22,14 @@ class Client
      */
     public $sockets;
 
-    public function __construct($server, $conn)
+    public function __construct($server, $engineSocket)
     {
         $this->server = $server;
-        $this->conn = $conn;
+        $this->engineSocket = $engineSocket;
         $this->encoder = new Encoder();
         $this->decoder = new Decoder();
-        $this->id = $conn->id;
-        $this->request = $conn->request;
+        $this->id = $engineSocket->id;
+        $this->request = $engineSocket->request;
         $this->setup();
         Debug::debug('Client __construct');
     }
@@ -48,9 +48,9 @@ class Client
     public function setup()
     {
         $this->decoder->on('decoded', [$this, 'ondecoded']);
-        $this->conn->on('data', [$this, 'ondata']);
-        $this->conn->on('error', [$this, 'onerror']);
-        $this->conn->on('close', [$this, 'onclose']);
+        $this->engineSocket->on('data', [$this, 'ondata']);
+        $this->engineSocket->on('error', [$this, 'onerror']);
+        $this->engineSocket->on('close', [$this, 'onclose']);
     }
 
     /**
@@ -121,11 +121,11 @@ class Client
      */
     public function close()
     {
-        if (empty($this->conn)) {
+        if (empty($this->engineSocket)) {
             return;
         }
-        if ('open' === $this->conn->readyState) {
-            $this->conn->close();
+        if ('open' === $this->engineSocket->readyState) {
+            $this->engineSocket->close();
             $this->onclose('forced server close');
         }
     }
@@ -139,7 +139,7 @@ class Client
      */
     public function packet($packet, $preEncoded = false, $volatile = false)
     {
-        if (! empty($this->conn) && 'open' === $this->conn->readyState) {
+        if (! empty($this->engineSocket) && 'open' === $this->engineSocket->readyState) {
             if (! $preEncoded) {
                 // not broadcasting, need to encode
                 $encodedPackets = $this->encoder->encode($packet);
@@ -155,14 +155,14 @@ class Client
         if ($volatile) {
             echo new Exception('volatile');
         }
-        if ($volatile && ! $this->conn->transport->writable) {
+        if ($volatile && ! $this->engineSocket->transport->writable) {
             return;
         }
         if (isset($encodedPackets['nsp'])) {
             unset($encodedPackets['nsp']);
         }
         foreach ($encodedPackets as $packet) {
-            $this->conn->write($packet);
+            $this->engineSocket->write($packet);
         }
     }
 
@@ -219,7 +219,7 @@ class Client
      */
     public function onclose($reason)
     {
-        if (empty($this->conn)) {
+        if (empty($this->engineSocket)) {
             return;
         }
         // ignore a potential subsequent `close` event
@@ -239,12 +239,14 @@ class Client
      */
     public function destroy()
     {
-        if (! $this->conn) {
+        if (! $this->engineSocket) {
             return;
         }
-        $this->conn->removeAllListeners();
+        $this->engineSocket->removeAllListeners();
         $this->decoder->removeAllListeners();
         $this->encoder->removeAllListeners();
-        $this->server = $this->conn = $this->encoder = $this->decoder = $this->request = $this->nsps = null;
+        $this->server = $this->engineSocket = null;
+        $this->encoder = $this->decoder =  null;
+        $this->request = $this->nsps = null;
     }
 }

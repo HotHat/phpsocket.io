@@ -12,9 +12,9 @@ class Polling extends Transport
     public $shouldClose = null;
     public $writable = false;
 
-    public function onRequest($req)
+    public function onRequest($req, $res)
     {
-        $res = $req->res;
+        // $res = $req->res;
 
         if ('GET' === $req->method) {
             $this->onPollRequest($req, $res);
@@ -28,19 +28,19 @@ class Polling extends Transport
 
     public function onPollRequest($req, $res)
     {
-        if ($this->req) {
-            echo('request overlap');
+        // if ($this->req) {
+        //     echo('request overlap');
             // assert: this.res, '.req and .res should be (un)set together'
-            $this->onError('overlap from client');
-            $res->writeHead(500);
-            return;
-        }
+            // $this->onError('overlap from client');
+            // $res->writeHead(500);
+        //     return;
+        // }
 
         $this->req = $req;
         $this->res = $res;
 
-        $req->onClose = [$this, 'pollRequestOnClose'];
-        $req->cleanup = [$this, 'pollRequestClean'];
+        // $req->onClose = [$this, 'pollRequestOnClose'];
+        // $req->cleanup = [$this, 'pollRequestClean'];
 
         $this->writable = true;
         $this->emit('drain');
@@ -81,6 +81,7 @@ class Polling extends Transport
         $req->onClose = [$this, 'dataRequestOnClose'];
         $req->onData = [$this, 'dataRequestOnData'];
         $req->onEnd = [$this, 'dataRequestOnEnd'];
+
     }
 
     public function dataRequestCleanup()

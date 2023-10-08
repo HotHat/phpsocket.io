@@ -19,11 +19,14 @@ class Request
     public $url = null;
 
     public $connection = null;
+    public $_query = [];
+    public $_buffer = '';
 
-    public function __construct($connection, $raw_head)
+    public function __construct($connection, $rawData)
     {
         $this->connection = $connection;
-        $this->parseHead($raw_head);
+        $this->_buffer = $rawData;
+        $this->parseHead($rawData);
     }
 
     public function parseHead($raw_head)
@@ -39,6 +42,51 @@ class Request
             $this->rawHeaders[] = $content;
             list($key, $value) = explode(':', $content, 2);
             $this->headers[strtolower($key)] = trim($value);
+        }
+
+        $this->prepare();
+    }
+
+    protected function prepare()
+    {
+        if (empty($this->_query)) {
+            $info = parse_url($this->url);
+            if (isset($info['query'])) {
+                parse_str($info['query'], $this->_query);
+            }
+        }
+    }
+    /**
+     * Get http raw head.
+     *
+     * @return string
+     */
+    public function rawHead()
+    {
+        if (!isset($this->_data['head'])) {
+            $this->_data['head'] = \strstr($this->_buffer, "\r\n\r\n", true);
+        }
+        return $this->_data['head'];
+    }
+
+    /**
+     * Get http raw body.
+     *
+     * @return string
+     */
+    public function rawBody()
+    {
+        return \substr($this->_buffer, \strpos($this->_buffer, "\r\n\r\n") + 4);
+    }
+
+    public function get($key = null)
+    {
+        $this->prepare();
+
+        if ($key) {
+            return $this->_query[$key] ?? null;
+        } else {
+            return $this->_query;
         }
     }
 

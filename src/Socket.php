@@ -16,7 +16,7 @@ class Socket extends Emitter
     public $path = '/';
     public $request = null;
     public $client = null;
-    public $conn = null;
+    public $engineSocket = null;
     public $rooms = [];
     public $_rooms = [];
     public $flags = [];
@@ -46,7 +46,7 @@ class Socket extends Emitter
         $this->id = ($nsp->name !== '/') ? $nsp->name . '#' . $client->id : $client->id;
         $this->request = $client->request;
         $this->client = $client;
-        $this->conn = $client->conn;
+        $this->engineSocket = $client->engineSocket;
         $this->handshake = $this->buildHandshake();
         Debug::debug('IO Socket __construct');
     }
@@ -67,7 +67,7 @@ class Socket extends Emitter
         return [
             'headers' => $this->request->headers ?? [],
             'time' => date('D M d Y H:i:s') . ' GMT',
-            'address' => $this->conn->remoteAddress,
+            'address' => $this->engineSocket->remoteAddress ?? '',
             'xdomain' => isset($this->request->headers['origin']),
             'secure' => ! empty($this->request->connection->encrypted),
             'issued' => time(),
@@ -385,7 +385,7 @@ class Socket extends Emitter
         $this->adapter = null;
         $this->request = null;
         $this->client = null;
-        $this->conn = null;
+        $this->engineSocket = null;
         $this->removeAllListeners();
     }
 

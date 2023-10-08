@@ -63,25 +63,25 @@ class Engine extends Emitter
 
     public function handleRequest($req, $res)
     {
-        $this->prepare($req);
-        $req->res = $res;
+        // $this->prepare($req);
+        // $req->res = $res;
         $this->verify($req, $res, false, [$this, 'dealRequest']);
     }
 
     /**
      * @throws Exception
      */
-    public function dealRequest($err, $success, $req)
+    public function dealRequest($req, $res)
     {
-        if (! $success) {
-            self::sendErrorMessage($req, $req->res, $err);
-            return;
-        }
+        // if (! $err) {
+        //     self::sendErrorMessage($req, $res, $err);
+        //     return;
+        // }
 
         if (isset($req->_query['sid'])) {
-            $this->clients[$req->_query['sid']]->transport->onRequest($req);
+            $this->clients[$req->_query['sid']]->transport->onRequest($req, $res);
         } else {
-            $this->handshake($req->_query['transport'], $req);
+            $this->handshake($req->_query['transport'], $req, $res);
         }
     }
 
@@ -109,30 +109,39 @@ class Engine extends Emitter
     protected function verify($req, $res, $upgrade, $fn)
     {
         if (! isset($req->_query['transport']) || ! isset(self::$allowTransports[$req->_query['transport']])) {
-            return call_user_func($fn, self::ERROR_UNKNOWN_TRANSPORT, false, $req, $res);
+            self::sendErrorMessage($req, $res, self::ERROR_UNKNOWN_TRANSPORT);
+            return false;
         }
         $transport = $req->_query['transport'];
         $sid = $req->_query['sid'] ?? '';
         if ($sid) {
             if (! isset($this->clients[$sid])) {
-                return call_user_func($fn, self::ERROR_UNKNOWN_SID, false, $req, $res);
+                self::sendErrorMessage($req, $res, self::ERROR_UNKNOWN_SID);
+                return false;
             }
             if (! $upgrade && $this->clients[$sid]->transport->name !== $transport) {
-                return call_user_func($fn, self::ERROR_BAD_REQUEST, false, $req, $res);
+                self::sendErrorMessage($req, $res, self::ERROR_BAD_REQUEST);
+                return false;
             }
+            //
+            return $fn($req, $res);
         } else {
             if ('GET' !== $req->method) {
-                return call_user_func($fn, self::ERROR_BAD_HANDSHAKE_METHOD, false, $req, $res);
+                self::sendErrorMessage($req, $res, self::ERROR_BAD_HANDSHAKE_METHOD);
+                return false;
             }
+
             return $this->checkRequest($req, $res, $fn);
         }
-        call_user_func($fn, null, true, $req, $res);
+
+        // call_user_func($fn, null, true, $req, $res);
     }
 
     public function checkRequest($req, $res, $fn)
     {
         if ($this->origins === "*:*" || empty($this->origins)) {
-            return call_user_func($fn, null, true, $req, $res);
+            return $fn($req, $res);
+            // return call_user_func($fn, null, true, $req, $res);
         }
         $origin = null;
         if (isset($req->headers['origin'])) {
@@ -143,7 +152,8 @@ class Engine extends Emitter
 
         // file:// URLs produce a null Origin which can't be authorized via echo-back
         if ('null' === $origin || null === $origin) {
-            return call_user_func($fn, null, true, $req, $res);
+            return $fn($req, $res);
+            // return call_user_func($fn, null, true, $req, $res);
         }
 
         if ($origin) {
@@ -163,7 +173,10 @@ class Engine extends Emitter
                 }
             }
         }
-        call_user_func($fn, null, false, $req, $res);
+
+        self::sendErrorMessage($req, $res, null);
+        return false;
+        // call_user_func($fn, null, false, $req, $res);
     }
 
     protected function prepare($req)
@@ -179,7 +192,7 @@ class Engine extends Emitter
     /**
      * @throws Exception
      */
-    public function handshake($transport, $req)
+    public function handshake($transport, $req, $res)
     {
         $id = bin2hex(pack('d', microtime(true)) . pack('N', function_exists('random_int') ? random_int(1, 100000000) : rand(1, 100000000)));
         if ($transport == 'websocket') {
@@ -190,13 +203,16 @@ class Engine extends Emitter
             $transport = '\\PHPSocketIO\\Engine\\Transports\\PollingXHR';
         }
 
-        $transport = new $transport($req);
+        $transport = new $transport($req, $res);
 
         $transport->supportsBinary = ! isset($req->_query['b64']);
+        $transport->writable = true;
+        $transport->emit('drain');
+
+        $transport->onRequest($req, $res);
 
         $socket = new Socket($id, $this, $transport, $req);
 
-        $transport->onRequest($req);
 
         $this->clients[$id] = $socket;
         $socket->once('close', [$this, 'onSocketClose']);
@@ -239,19 +255,19 @@ class Engine extends Emitter
 
     public function onWebSocketConnect($connection, $req, $res)
     {
-        $this->prepare($req);
+        // $this->prepare($req);
         $this->verify($req, $res, true, [$this, 'dealWebSocketConnect']);
     }
 
     /**
      * @throws Exception
      */
-    public function dealWebSocketConnect($err, $success, $req, $res)
+    public function dealWebSocketConnect($req, $res)
     {
-        if (! $success) {
-            self::sendErrorMessage($req, $res, $err);
-            return;
-        }
+        // if (! $success) {
+        //     self::sendErrorMessage($req, $res, $err);
+        //     return;
+        // }
 
         if (isset($req->_query['sid'])) {
             if (! isset($this->clients[$req->_query['sid']])) {
@@ -270,7 +286,7 @@ class Engine extends Emitter
             $transport = new WebSocket($req);
             $client->maybeUpgrade($transport);
         } else {
-            $this->handshake($req->_query['transport'], $req);
+            $this->handshake($req->_query['transport'], $req, $res);
         }
     }
 }
