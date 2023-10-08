@@ -11,6 +11,7 @@ class Transport extends Emitter
     public $req = null;
     public $res = null;
     public $shouldClose = null;
+    public $sid = '';
 
     public function __construct()
     {
