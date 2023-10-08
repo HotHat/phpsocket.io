@@ -68,7 +68,6 @@ class SktIO
         $raw_head = substr($recv_buffer, 0, $pos + 4);
         $req = new Request($connection, $raw_head);
         
-        var_dump('upgrade: ' . $req->headers['upgrade'] ?? '');
         if (isset($req->headers['upgrade']) && strtolower($req->headers['upgrade']) === 'websocket') {
             $connection->consumeRecvBuffer(strlen($recv_buffer));
             WebSocket::dealHandshake($connection, $req, new Response($connection));
@@ -79,21 +78,6 @@ class SktIO
         return $length;
     }
 
-    public static function onWebSocketConnect() {
-
-    }
-
-    public static function decode($recv_buffer, TcpConnection $connection)
-    {
-        static $requests = array();
-
-        $request = new Request($connection, $recv_buffer);
-        $request->connection = $connection;
-        $connection->__request = $request;
-
-        return $request;
-    }
-
     /**
      * Http encode.
      *
@@ -101,12 +85,25 @@ class SktIO
      * @param TcpConnection $connection
      * @return string
      */
-    public static function encode($response, TcpConnection $connection)
+    public static function encode($httpBuffer, TcpConnection $connection)
     {
-        var_dump('encode in');
-        var_dump(gettype($response));
-        $response->setHeader('Content-Length', strlen($buffer));
-        
-        $response->end($buffer);
+        return $httpBuffer;
+        // if (isset($connection->onRequest)) {
+        //     return $httpBuffer;
+        // } else {
+        //     list($head, $body) = explode("\r\n\r\n", $httpBuffer, 2);
+        //     return $body;
+        // }
     }
+
+    public static function decode($buffer, TcpConnection $connection)
+    {
+        $request = new Request($connection, $buffer);
+        $request->connection = $connection;
+        $connection->__request = $request;
+
+        return $request;
+    }
+
+
 }

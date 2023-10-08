@@ -252,7 +252,7 @@ class RFC6455 implements ProtocolInterface
         $headers = [];
         if (isset($connection->onWebSocketConnect)) {
             try {
-                call_user_func_array($connection->onWebSocketConnect, [$connection, $req, $res]);
+                call_user_func_array($connection->onWebSocketConnect, [$req, $res]);
             } catch (\Exception $e) {
                 echo $e;
             }

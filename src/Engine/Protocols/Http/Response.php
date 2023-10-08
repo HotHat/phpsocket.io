@@ -106,7 +106,7 @@ class Response
     public function end($data = null)
     {
         if (! $this->writable) {
-            echo new Exception('unwirtable');
+            echo new Exception('UnWritable');
             return false;
         }
         if ($data !== null) {

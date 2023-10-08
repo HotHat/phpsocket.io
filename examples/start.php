@@ -7,33 +7,10 @@ if (! class_exists('Protocols\SktIO')) {
     class_alias('PHPSocketIO\Engine\Protocols\SktIO', 'Protocols\SktIO');
 }
 
-class MyEio extends \PHPSocketIO\Event\Emitter {
-    private $engine;
-    private $eio;
-    public function __construct()
-    {
-
-        $this->eio = new \PHPSocketIO\SocketIO();
-        $this->engine = new \PHPSocketIO\Engine\Engine();
-        $this->eio->bind($this->engine);
-    }
-
-    public function onRequest($request) {
-        $res = new \PHPSocketIO\Engine\Protocols\Http\Response($request->connection);
-
-        $this->engine->handleRequest($request, $res);
-    }
-
-    public function onWebSocketConnect($conn, $req, $res) {
-
-    }
-
-    public function onWebSocketMessage($conn, $message) {
-
-    }
-}
-
-$myEio = new MyEio();
+$eio = new \PHPSocketIO\SocketIO();
+$engine = new \PHPSocketIO\Engine\Engine();
+// $this->engine->attach($worker);
+$eio->bind($this->engine);
 
 
 $tmp = <<<EOF
@@ -58,7 +35,7 @@ $connection = new FakeTcpConnection(1);
 $req = new \PHPSocketIO\Engine\Protocols\Http\Request($connection, $raw);
 
 ob_start();
-$myEio->onRequest($req);
+$engine->onHttpRequest($connection, $req);
 
 $content = ob_get_contents();
 
@@ -75,7 +52,31 @@ var_dump($next);
 
 $connection = new FakeTcpConnection(2);
 $req1 = new \PHPSocketIO\Engine\Protocols\Http\Request($connection, $next);
-$myEio->onRequest($req1);
+// $myEio->onRequest($req1);
+
+$engine->onHttpRequest($connection, $req1);
+
+$engine->onWebSocketConnect($req1, new \PHPSocketIO\Engine\Protocols\Http\Response($connection));
+
+/*
+$eio = <<<EOF
+GET /socket.io/?EIO=3&transport=websocket&sid=$sid HTTP/1.1
+Connection: Upgrade
+Pragma: no-cache
+Cache-Control: no-cache
+User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/117.0.0.0 Safari/537.36
+Upgrade: websocket
+Origin: http://hyj-v2.test
+Sec-WebSocket-Version: 13
+Accept-Encoding: gzip, deflate
+Accept-Language: zh-CN,zh;q=0.9,en;q=0.8,ja;q=0.7
+Sec-WebSocket-Key: U/e5nRLU8aiN8GJOaXgnhQ==
+EOF;
+*/
+
+
+
+
 
 
 

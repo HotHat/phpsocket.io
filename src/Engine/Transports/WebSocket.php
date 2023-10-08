@@ -14,9 +14,9 @@ class WebSocket extends Transport
     public $name = 'websocket';
     public $socket = null;
 
-    public function __construct($req)
+    public function __construct($connection)
     {
-        $this->socket = $req->connection;
+        $this->socket = $connection;
         $this->socket->onMessage = [$this, 'onData2'];
         $this->socket->onClose = [$this, 'onClose'];
         $this->socket->onError = [$this, 'onError2'];
@@ -30,12 +30,14 @@ class WebSocket extends Transport
 
     public function onData2($connection, $data)
     {
-        call_user_func([$this, 'parent::onData'], $data);
+        $this->onData($data);
+        // call_user_func([$this, 'parent::onData'], $data);
     }
 
-    public function onError2($conection, $code, $msg)
+    public function onError2($connection, $code, $msg)
     {
-        call_user_func([$this, 'parent::onClose'], $code, $msg);
+        $this->onClose();
+        // call_user_func([$this, 'parent::onClose'], $code, $msg);
     }
 
     public function send($packets)

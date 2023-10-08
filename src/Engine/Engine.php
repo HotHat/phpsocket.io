@@ -3,6 +3,8 @@
 namespace PHPSocketIO\Engine;
 
 use Exception;
+use PHPSocketIO\Engine\Protocols\Http\Request;
+use PHPSocketIO\Engine\Protocols\Http\Response;
 use PHPSocketIO\Engine\Transports\WebSocket;
 use PHPSocketIO\Event\Emitter;
 use PHPSocketIO\Debug;
@@ -73,11 +75,6 @@ class Engine extends Emitter
      */
     public function dealRequest($req, $res)
     {
-        // if (! $err) {
-        //     self::sendErrorMessage($req, $res, $err);
-        //     return;
-        // }
-
         if (isset($req->_query['sid'])) {
             $this->clients[$req->_query['sid']]->transport->onRequest($req, $res);
         } else {
@@ -194,7 +191,12 @@ class Engine extends Emitter
      */
     public function handshake($transport, $req, $res)
     {
-        $id = bin2hex(pack('d', microtime(true)) . pack('N', function_exists('random_int') ? random_int(1, 100000000) : rand(1, 100000000)));
+        $id = bin2hex(
+            pack('d', microtime(true)) .
+            pack('N', function_exists('random_int') ?
+                random_int(1, 100000000) : rand(1, 100000000))
+        );
+
         if ($transport == 'websocket') {
             $transport = '\\PHPSocketIO\\Engine\\Transports\\WebSocket';
         } elseif (isset($req->_query['j'])) {
@@ -228,32 +230,44 @@ class Engine extends Emitter
     {
         $this->server = $worker;
         $worker->onConnect = [$this, 'onConnect'];
+        $worker->onMessage = [$this, 'onHttpRequest'];
+    }
+
+    /**
+     * http response
+     * @param $connection
+     * @param $request
+     * @return void
+     */
+    public function onHttpRequest($connection, $request) {
+        $res = new Response($connection);
+        $this->handleRequest($request, $res);
     }
 
     public function onConnect($connection)
     {
-        $connection->onRequest = [$this, 'handleRequest'];
+        // $connection->onRequest = [$this, 'handleRequest'];
         $connection->onWebSocketConnect = [$this, 'onWebSocketConnect'];
         // clean
         $connection->onClose = function ($connection) {
-            if (! empty($connection->httpRequest)) {
-                $connection->httpRequest->destroy();
-                $connection->httpRequest = null;
-            }
-            if (! empty($connection->httpResponse)) {
-                $connection->httpResponse->destroy();
-                $connection->httpResponse = null;
-            }
-            if (! empty($connection->onRequest)) {
-                $connection->onRequest = null;
-            }
+            // if (! empty($connection->httpRequest)) {
+            //     $connection->httpRequest->destroy();
+            //     $connection->httpRequest = null;
+            // }
+            // if (! empty($connection->httpResponse)) {
+            //     $connection->httpResponse->destroy();
+            //     $connection->httpResponse = null;
+            // }
+            // if (! empty($connection->onRequest)) {
+            //     $connection->onRequest = null;
+            // }
             if (! empty($connection->onWebSocketConnect)) {
                 $connection->onWebSocketConnect = null;
             }
         };
     }
 
-    public function onWebSocketConnect($connection, $req, $res)
+    public function onWebSocketConnect($req, $res)
     {
         // $this->prepare($req);
         $this->verify($req, $res, true, [$this, 'dealWebSocketConnect']);
@@ -264,11 +278,6 @@ class Engine extends Emitter
      */
     public function dealWebSocketConnect($req, $res)
     {
-        // if (! $success) {
-        //     self::sendErrorMessage($req, $res, $err);
-        //     return;
-        // }
-
         if (isset($req->_query['sid'])) {
             if (! isset($this->clients[$req->_query['sid']])) {
                 self::sendErrorMessage($req, $res, 'upgrade attempt for closed client');
@@ -283,7 +292,7 @@ class Engine extends Emitter
                 self::sendErrorMessage($req, $res, 'transport had already been upgraded');
                 return;
             }
-            $transport = new WebSocket($req);
+            $transport = new WebSocket($req->connection);
             $client->maybeUpgrade($transport);
         } else {
             $this->handshake($req->_query['transport'], $req, $res);
